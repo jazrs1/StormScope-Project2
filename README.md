@@ -1,3 +1,24 @@
+## Running the StormScope data preview
+
+From the [NOAA Storm Events downloads](https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/), download the `StormEvents_details` files for 2023 and 2024. Extract both `.csv.gz` files and place the CSVs in a `data` folder at the root of the repository. Use these filenames:
+
+- `data/storms_2023.csv`
+- `data/storms_2024.csv`
+
+From the repository root, compile and run the preview in Windows PowerShell with a C++17 compiler:
+
+```powershell
+g++ -std=c++17 tools/preview_event.cpp backend/StormLoader.cpp backend/StormFilter.cpp -o "$env:TEMP\preview_event.exe"
+if ($LASTEXITCODE -eq 0) { & "$env:TEMP\preview_event.exe" }
+```
+
+With the files we tested, the preview loaded 75,593 events from 2023 and 69,801 from 2024, for 145,394 total. Filtering for Florida flood events in 2024 returned 73 records.
+
+
+
+
+
+
 <H1> COP3530 - Project 2 </h1>
 This is the template for Project 2 repositories. It includes all the assignment instructions and documentation to help you use GitHub.
 
