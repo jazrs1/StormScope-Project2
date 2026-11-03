@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include "../backend/StormEvent.h"
+#include <sstream>
 
 bool readCsvRow(std::istream& input, std::vector<std::string>& row) {
     row.clear();
@@ -33,7 +34,27 @@ bool readCsvRow(std::istream& input, std::vector<std::string>& row) {
     row.push_back(field);              // Last row may have no newline.
     return true;
 }
+bool parseDamage(const std::string& text, double& dollars) {
+    std::istringstream input(text);
+    double amount;
+    if (!(input >> amount) || amount < 0) return false;
 
+    char suffix;
+    if (input >> suffix) {
+        switch (suffix) {
+            case 'K': case 'k': amount *= 1000; break;
+            case 'M': case 'm': amount *= 1000000; break;
+            case 'B': case 'b': amount *= 1000000000; break;
+            default: return false;
+        }
+
+        char extra;
+        if (input >> extra) return false;
+    }
+
+    dollars = amount;
+    return true;
+}
 int main() {
     std::ifstream file("data/storms_2023.csv");
     if (!file) {
@@ -85,6 +106,10 @@ int main() {
                 time = std::stoi(row[i]);
             } else if(header[i] == "BEGIN_DATE_TIME"){
                 storm.displayDate = row[i];
+            } else if(header[i] == "DAMAGE_PROPERTY"){
+                storm.damageKnown = parseDamage(row[i], storm.propertyDamage);
+            } else if(header[i] == "EVENT_NARRATIVE"){
+                storm.description = row[i];
             }
             
         }
@@ -99,6 +124,14 @@ int main() {
     }
 }
     std::cout << "2023 events loaded: " << events.size() << '\n';
+    for (const StormEvent& event : events) {
+    if (event.damageKnown && event.propertyDamage > 0) {
+        std::cout << event.eventId << " | Damage: $"
+                  << event.propertyDamage << '\n';
+        std::cout << "Description: " << event.description << '\n';
+        break;
+    }
+}
     if (!events.empty()) {
     const StormEvent& first = events.front();
     std::cout << first.displayDate << " | " << first.dateKey << '\n';
