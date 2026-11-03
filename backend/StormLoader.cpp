@@ -12,7 +12,7 @@ bool readCsvRow(std::istream& input, std::vector<std::string>& row) {
     while (input.get(ch)) {
         if (ch == '"') {
             if (inQuotes && input.peek() == '"') {
-                input.get();           // Two quotes represent one literal quote.
+                input.get();       
                 field += '"';
             } else {
                 inQuotes = !inQuotes;
@@ -29,7 +29,7 @@ bool readCsvRow(std::istream& input, std::vector<std::string>& row) {
     }
 
     if (inQuotes || (row.empty() && field.empty())) return false;
-    row.push_back(field);              // Last row may have no newline.
+    row.push_back(field);           
     return true;
 }
 bool parseDamage(const std::string& text, double& dollars) {
