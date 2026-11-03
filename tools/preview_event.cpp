@@ -1,4 +1,5 @@
 #include "../backend/StormLoader.h"
+#include "../backend/StormFilter.h"
 #include <iostream>
 
 int main() {
@@ -40,6 +41,10 @@ std::cout << "Total events loaded: " << events.size() << '\n';
             break;
         }
     }
+    const auto floods = filterEvents(events, "FLORIDA", 2024, "Flood");
+    std::cout << "Florida floods in 2024: " << floods.size() << '\n';
 
+    const auto all = filterEvents(events, "", 0, "");
+    std::cout << "All filters off: " << all.size() << '\n';
     return 0;
 }
