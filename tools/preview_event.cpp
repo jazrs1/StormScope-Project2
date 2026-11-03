@@ -58,6 +58,10 @@ int main() {
         }
 
         StormEvent storm;
+        int yearMonth = 0;
+        int day = 0;
+        int time = 0;
+
         for (std::size_t i = 0; i < header.size(); ++i) {
             if (header[i] == "EVENT_ID") {
                 storm.eventId = std::stoi(row[i]);
@@ -65,12 +69,42 @@ int main() {
                 storm.state = row[i];
             } else if (header[i] == "EVENT_TYPE") {
                 storm.eventType = row[i];
+            } else if(header[i] == "CZ_NAME"){
+                storm.countyOrZone = row[i];
+            } else if(header[i] == "YEAR"){
+                storm.year = std::stoi(row[i]);
+            } else if(header[i] == "INJURIES_DIRECT" || header[i] == "INJURIES_INDIRECT"){
+                if(!row[i].empty()){
+                    storm.totalInjuries += std::stoi(row[i]);
+                }
+            } else if(header [i] == "BEGIN_YEARMONTH"){
+                yearMonth = std::stoi(row[i]);
+            } else if(header[i] == "BEGIN_DAY"){
+                day = std::stoi(row[i]);
+            } else if(header[i] == "BEGIN_TIME"){
+                time = std::stoi(row[i]);
+            } else if(header[i] == "BEGIN_DATE_TIME"){
+                storm.displayDate = row[i];
             }
+            
         }
+        storm.dateKey = (static_cast<long long>(yearMonth) * 100 + day) * 10000 + time;
         events.push_back(storm);
     }
-
+    for (const StormEvent& event : events) {
+    if (event.totalInjuries > 0) {
+        std::cout << event.eventId << " | Total injuries: "
+                  << event.totalInjuries << '\n';
+        break;
+    }
+}
     std::cout << "2023 events loaded: " << events.size() << '\n';
+    if (!events.empty()) {
+    const StormEvent& first = events.front();
+    std::cout << first.displayDate << " | " << first.dateKey << '\n';
+    std::cout << first.eventId << " | " << first.countyOrZone
+              << " | " << first.year << '\n';
+}
     return 0;
 
 }
