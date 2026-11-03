@@ -55,27 +55,28 @@ bool parseDamage(const std::string& text, double& dollars) {
     dollars = amount;
     return true;
 }
-int main() {
-    std::ifstream file("data/storms_2023.csv");
+bool loadEvents(const std::string& path, std::vector<StormEvent>& events) {
+    std::ifstream file(path);
     if (!file) {
-        std::cerr << "Could not open data/storms_2023.csv\n";
-        return 1;
+        std::cerr << "Could not open " << path << '\n';
+        return false;
     }
 
-       std::vector<std::string> header;
+    std::vector<std::string> header;
     if (!readCsvRow(file, header)) {
-        std::cerr << "Could not read the CSV header.\n";
-        return 1;
+        std::cerr << "Could not read the header in " << path << '\n';
+        return false;
     }
 
-    std::vector<StormEvent> events;
     std::vector<std::string> row;
+    std::size_t rowNumber = 0;
 
     while (readCsvRow(file, row)) {
+        ++rowNumber;
         if (row.size() != header.size()) {
-            std::cerr << "Wrong number of columns in data row "
-                      << events.size() + 1 << '\n';
-            return 1;
+            std::cerr << "Wrong number of columns in " << path
+                      << ", data row " << rowNumber << '\n';
+            return false;
         }
 
         StormEvent storm;
@@ -84,60 +85,85 @@ int main() {
         int time = 0;
 
         for (std::size_t i = 0; i < header.size(); ++i) {
-            if (header[i] == "EVENT_ID") {
-                storm.eventId = std::stoi(row[i]);
-            } else if (header[i] == "STATE") {
-                storm.state = row[i];
-            } else if (header[i] == "EVENT_TYPE") {
-                storm.eventType = row[i];
-            } else if(header[i] == "CZ_NAME"){
-                storm.countyOrZone = row[i];
-            } else if(header[i] == "YEAR"){
-                storm.year = std::stoi(row[i]);
-            } else if(header[i] == "INJURIES_DIRECT" || header[i] == "INJURIES_INDIRECT"){
-                if(!row[i].empty()){
-                    storm.totalInjuries += std::stoi(row[i]);
+            const std::string& column = header[i];
+            const std::string& value = row[i];
+
+            if (column == "EVENT_ID") {
+                storm.eventId = std::stoi(value);
+            } else if (column == "STATE") {
+                storm.state = value;
+            } else if (column == "EVENT_TYPE") {
+                storm.eventType = value;
+            } else if (column == "CZ_NAME") {
+                storm.countyOrZone = value;
+            } else if (column == "YEAR") {
+                storm.year = std::stoi(value);
+            } else if (column == "BEGIN_YEARMONTH") {
+                yearMonth = std::stoi(value);
+            } else if (column == "BEGIN_DAY") {
+                day = std::stoi(value);
+            } else if (column == "BEGIN_TIME") {
+                time = std::stoi(value);
+            } else if (column == "BEGIN_DATE_TIME") {
+                storm.displayDate = value;
+            } else if (column == "INJURIES_DIRECT" ||
+                       column == "INJURIES_INDIRECT") {
+                if (!value.empty()) {
+                    storm.totalInjuries += std::stoi(value);
                 }
-            } else if(header [i] == "BEGIN_YEARMONTH"){
-                yearMonth = std::stoi(row[i]);
-            } else if(header[i] == "BEGIN_DAY"){
-                day = std::stoi(row[i]);
-            } else if(header[i] == "BEGIN_TIME"){
-                time = std::stoi(row[i]);
-            } else if(header[i] == "BEGIN_DATE_TIME"){
-                storm.displayDate = row[i];
-            } else if(header[i] == "DAMAGE_PROPERTY"){
-                storm.damageKnown = parseDamage(row[i], storm.propertyDamage);
-            } else if(header[i] == "EVENT_NARRATIVE"){
-                storm.description = row[i];
+            } else if (column == "DAMAGE_PROPERTY") {
+                storm.damageKnown = parseDamage(value, storm.propertyDamage);
+            } else if (column == "EVENT_NARRATIVE") {
+                storm.description = value;
             }
-            
         }
-        storm.dateKey = (static_cast<long long>(yearMonth) * 100 + day) * 10000 + time;
+
+        storm.dateKey = (static_cast<long long>(yearMonth) * 100 + day)
+                        * 10000 + time;
         events.push_back(storm);
     }
-    for (const StormEvent& event : events) {
-    if (event.totalInjuries > 0) {
-        std::cout << event.eventId << " | Total injuries: "
-                  << event.totalInjuries << '\n';
-        break;
-    }
-}
-    std::cout << "2023 events loaded: " << events.size() << '\n';
-    for (const StormEvent& event : events) {
-    if (event.damageKnown && event.propertyDamage > 0) {
-        std::cout << event.eventId << " | Damage: $"
-                  << event.propertyDamage << '\n';
-        std::cout << "Description: " << event.description << '\n';
-        break;
-    }
-}
-    if (!events.empty()) {
-    const StormEvent& first = events.front();
-    std::cout << first.displayDate << " | " << first.dateKey << '\n';
-    std::cout << first.eventId << " | " << first.countyOrZone
-              << " | " << first.year << '\n';
-}
-    return 0;
 
+    return true;
+}
+int main() {
+    std::vector<StormEvent> events;
+
+    if (!loadEvents("data/storms_2023.csv", events)) {
+        return 1;
+    }
+
+const std::size_t count2023 = events.size();
+std::cout << "2023 events loaded: " << count2023 << '\n';
+
+if (!loadEvents("data/storms_2024.csv", events)) {
+    return 1;
+}
+
+std::cout << "2024 events loaded: " << events.size() - count2023 << '\n';
+std::cout << "Total events loaded: " << events.size() << '\n';
+    if (!events.empty()) {
+        const StormEvent& first = events.front();
+        std::cout << first.displayDate << " | " << first.dateKey << '\n';
+        std::cout << first.eventId << " | " << first.countyOrZone
+                  << " | " << first.year << '\n';
+    }
+
+    for (const StormEvent& event : events) {
+        if (event.totalInjuries > 0) {
+            std::cout << event.eventId << " | Total injuries: "
+                      << event.totalInjuries << '\n';
+            break;
+        }
+    }
+
+    for (const StormEvent& event : events) {
+        if (event.damageKnown && event.propertyDamage > 0) {
+            std::cout << event.eventId << " | Damage: $"
+                      << event.propertyDamage << '\n';
+            std::cout << "Description: " << event.description << '\n';
+            break;
+        }
+    }
+
+    return 0;
 }
