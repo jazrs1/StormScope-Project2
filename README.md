@@ -15,8 +15,30 @@ if ($LASTEXITCODE -eq 0) { & "$env:TEMP\preview_event.exe" }
 With the files we tested, the preview loaded 75,593 events from 2023 and 69,801 from 2024, for 145,394 total. Filtering for Florida flood events in 2024 returned 73 records.
 
 
+## Sorting: merge sort and tests
 
+Shared ordering contract (`backend/StormSort.h`, implemented in `backend/StormSort.cpp`):
 
+- **Damage:** known damage first, highest dollars first; unknown damage last (a known $0 still counts as known).
+- **Injuries:** highest `totalInjuries` first.
+- **Date:** newest `dateKey` first.
+- **Ties:** smaller `eventId` first.
+
+Both `mergeSort` and `quickSort` must order records with `comesBefore`. Filter first, copy the filtered records, and sort the copy, never the master vector.
+
+Run from the repository root in Windows PowerShell:
+
+```powershell
+# Small correctness tests
+g++ -std=c++17 -Wall -Wextra tools/test_merge_sort.cpp backend/MergeSort.cpp backend/StormSort.cpp -o "$env:TEMP\test_merge_sort.exe"
+if ($LASTEXITCODE -eq 0) { & "$env:TEMP\test_merge_sort.exe" }
+
+# Real-data rankings and whole-output checks
+g++ -std=c++17 -O2 tools/preview_sort.cpp backend/StormLoader.cpp backend/StormFilter.cpp backend/StormSort.cpp backend/MergeSort.cpp -o "$env:TEMP\preview_sort.exe"
+if ($LASTEXITCODE -eq 0) { & "$env:TEMP\preview_sort.exe" }
+```
+
+On macOS, use `clang++`, `\` for line continuation, output to `/tmp/<name>`, and run with `&& /tmp/<name>`. Compile one `tools/*.cpp` file at a time; each has its own `main`.
 
 
 <H1> COP3530 - Project 2 </h1>
