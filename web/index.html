@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StormScope</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap">
+      <h1>StormScope</h1>
+      <p>Rank NOAA storm events from 2023–2024 by property damage, injuries, or date,
+         sorted by our own C++ quicksort and merge sort.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel" aria-labelledby="filters-heading">
+      <h2 id="filters-heading">Search</h2>
+      <form id="search-form" class="filters">
+        <div class="control">
+          <label for="state">State</label>
+          <select id="state" name="state"><option value="">All</option></select>
+        </div>
+        <div class="control">
+          <label for="year">Year</label>
+          <select id="year" name="year"><option value="0">All</option></select>
+        </div>
+        <div class="control">
+          <label for="type">Event type</label>
+          <select id="type" name="type"><option value="">All</option></select>
+        </div>
+        <div class="control">
+          <label for="field">Rank by</label>
+          <select id="field" name="field">
+            <option value="damage">Property damage (highest first)</option>
+            <option value="injuries">Injuries (most first)</option>
+            <option value="date">Date (newest first)</option>
+          </select>
+        </div>
+        <fieldset class="control algorithms">
+          <legend>Algorithm</legend>
+          <label><input type="radio" name="algorithm" value="quick" checked> Quicksort</label>
+          <label><input type="radio" name="algorithm" value="merge"> Merge sort</label>
+          <label><input type="radio" name="algorithm" value="both"> Compare both</label>
+        </fieldset>
+        <div class="actions">
+          <button id="analyze" type="submit" disabled>Analyze</button>
+        </div>
+      </form>
+      <p id="status" class="status" role="status" aria-live="polite">Loading filter options…</p>
+    </section>
+
+    <section id="comparison" class="panel" aria-labelledby="comparison-heading" hidden>
+      <h2 id="comparison-heading">Algorithm comparison</h2>
+      <div class="timings">
+        <div class="timing">
+          <span class="timing-label">Quicksort</span>
+          <span id="time-quick" class="timing-value">–</span>
+        </div>
+        <div class="timing">
+          <span class="timing-label">Merge sort</span>
+          <span id="time-merge" class="timing-value">–</span>
+        </div>
+      </div>
+      <p id="comparison-note" class="note"></p>
+    </section>
+
+    <section id="results" class="panel" aria-labelledby="results-heading" hidden>
+      <h2 id="results-heading">Ranked results</h2>
+      <p id="summary" class="summary"></p>
+      <p id="empty" class="empty" hidden>No matching events. Try setting one of the filters back to All.</p>
+      <div id="table-wrap" class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Rank</th>
+              <th scope="col">Date</th>
+              <th scope="col">State</th>
+              <th scope="col">Location</th>
+              <th scope="col">Event type</th>
+              <th scope="col" class="num">Damage</th>
+              <th scope="col" class="num">Injuries</th>
+              <th scope="col"><span class="visually-hidden">Details</span></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <nav class="pager" aria-label="Result pages">
+        <button id="prev" type="button" disabled>← Previous</button>
+        <span id="page-info"></span>
+        <button id="next" type="button" disabled>Next →</button>
+      </nav>
+    </section>
+  </main>
+
+  <dialog id="details" aria-labelledby="details-title">
+    <h2 id="details-title">Event details</h2>
+    <dl id="details-list" class="details-list"></dl>
+    <h3>Narrative</h3>
+    <p id="details-description" class="narrative"></p>
+    <form method="dialog">
+      <button type="submit" id="details-close">Close</button>
+    </form>
+  </dialog>
+
+  <script src="/app.js"></script>
+</body>
+</html>

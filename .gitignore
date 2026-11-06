@@ -1,2 +1,5 @@
 /data/*.csv
 /data/*.csv.gz
+/build/
+.venv/
+__pycache__/
