@@ -45,8 +45,13 @@ function setStatus(message, isError = false) {
   els.status.classList.toggle("error", isError);
 }
 
-function formatMs(ms) {
+function formatMs(ms, resolutionMs) {
   if (ms === null || ms === undefined) return "not run";
+  if (ms === 0) {
+    const tick = resolutionMs > 0 ? `${Number(resolutionMs.toPrecision(2))} ms` : "one tick";
+    return `below timer resolution (<${tick})`;
+  }
+  if (ms < 0.001) return "<0.001 ms";
   return `${ms.toFixed(3)} ms`;
 }
 
@@ -148,11 +153,11 @@ function render(data) {
 
   const timing = data.algorithm === "merge" ? data.timingsMs.merge : data.timingsMs.quick;
   const timingText = data.algorithm === "both"
-    ? `quicksort ${formatMs(data.timingsMs.quick)}, merge sort ${formatMs(data.timingsMs.merge)}`
-    : formatMs(timing);
+    ? `quicksort ${formatMs(data.timingsMs.quick, data.timerResolutionMs)}, merge sort ${formatMs(data.timingsMs.merge, data.timerResolutionMs)}`
+    : formatMs(timing, data.timerResolutionMs);
 
   els.summary.textContent =
-    `${count.format(data.matchedCount)} matching events (of ${count.format(data.loadedCount)} loaded), ` +
+    `${count.format(data.matchedCount)} matching ${data.matchedCount === 1 ? "event" : "events"} (of ${count.format(data.loadedCount)} loaded), ` +
     `ranked by ${FIELD_LABELS[data.field]} using ${ALGORITHM_LABELS[data.algorithm]}. ` +
     `Sort time: ${timingText}.`;
 
@@ -198,14 +203,13 @@ function renderComparison(data) {
     return;
   }
   els.comparison.hidden = false;
-  els.timeQuick.textContent = formatMs(data.timingsMs.quick);
-  els.timeMerge.textContent = formatMs(data.timingsMs.merge);
+  els.timeQuick.textContent = formatMs(data.timingsMs.quick, data.timerResolutionMs);
+  els.timeMerge.textContent = formatMs(data.timingsMs.merge, data.timerResolutionMs);
   els.comparisonNote.textContent =
-    `Single run on ${count.format(data.matchedCount)} records. Each algorithm sorted its own identical ` +
+    `Single run on ${count.format(data.matchedCount)} ${data.matchedCount === 1 ? "record" : "records"}. Each algorithm sorted its own identical ` +
     `copy of the filtered data, and only the sort call was timed (not CSV loading, filtering, ` +
     `process startup, or page transfer). Both produced ` +
-    `${data.ordersMatch ? "the same ranked order" : "DIFFERENT orders"}. ` +
-    `See the team's repeated benchmarks for performance conclusions.`;
+    `${data.ordersMatch ? "the same ranked order" : "DIFFERENT orders"}.`;
 }
 
 function updatePager() {
