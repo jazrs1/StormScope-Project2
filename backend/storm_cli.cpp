@@ -199,6 +199,23 @@ bool isOrdered(const std::vector<StormEvent>& events, SortField field) {
     return true;
 }
 
+
+double timerResolutionMs() {
+    double smallest = -1.0;
+    for (int sample = 0; sample < 5; ++sample) {
+        const auto first = std::chrono::steady_clock::now();
+        auto next = std::chrono::steady_clock::now();
+        while (next == first) {
+            next = std::chrono::steady_clock::now();
+        }
+        const double step = std::chrono::duration<double, std::milli>(next - first).count();
+        if (smallest < 0 || step < smallest) {
+            smallest = step;
+        }
+    }
+    return smallest;
+}
+
 bool sameIdOrder(const std::vector<StormEvent>& a, const std::vector<StormEvent>& b) {
     if (a.size() != b.size()) return false;
     for (std::size_t i = 0; i < a.size(); ++i) {
@@ -311,6 +328,7 @@ int runQuery(const Options& opts) {
         << ",\"limit\":" << opts.limit
         << ",\"timingsMs\":{\"quick\":" << (runQuick ? jsonNumber(quickMs) : "null")
         << ",\"merge\":" << (runMerge ? jsonNumber(mergeMs) : "null") << "}"
+        << ",\"timerResolutionMs\":" << jsonNumber(timerResolutionMs())
         << ",\"ordersMatch\":" << ((runQuick && runMerge) ? (ordersMatch ? "true" : "false") : "null")
         << ",\"rows\":[";
 
