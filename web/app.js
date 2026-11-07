@@ -12,37 +12,43 @@ const els = {
   status: document.getElementById("status"),
   results: document.getElementById("results"),
   summary: document.getElementById("summary"),
+  timing: document.getElementById("timing"),
+  timingRows: document.getElementById("timing-rows"),
+  timingNote: document.getElementById("timing-note"),
   empty: document.getElementById("empty"),
   tableWrap: document.getElementById("table-wrap"),
   rows: document.getElementById("rows"),
   prev: document.getElementById("prev"),
   next: document.getElementById("next"),
   pageInfo: document.getElementById("page-info"),
-  comparison: document.getElementById("comparison"),
-  timeQuick: document.getElementById("time-quick"),
-  timeMerge: document.getElementById("time-merge"),
-  comparisonNote: document.getElementById("comparison-note"),
   details: document.getElementById("details"),
   detailsList: document.getElementById("details-list"),
   detailsDescription: document.getElementById("details-description"),
 };
 
-const FIELD_LABELS = { damage: "property damage", injuries: "injuries", date: "date" };
-const ALGORITHM_LABELS = { quick: "Quicksort", merge: "Merge sort", both: "Quicksort and merge sort" };
+const FIELD_LABELS = {
+  damage: "property damage (highest first)",
+  injuries: "injuries (most first)",
+  date: "date (newest first)",
+};
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency", currency: "USD", maximumFractionDigits: 0,
 });
 const count = new Intl.NumberFormat("en-US");
 
-
 let currentQuery = null;
 let latestRequestId = 0;
 let optionsLoaded = false;
+let loadedCount = null;
 
 function setStatus(message, isError = false) {
   els.status.textContent = message;
   els.status.classList.toggle("error", isError);
+}
+
+function loadedText() {
+  return loadedCount === null ? "" : `${count.format(loadedCount)} events loaded.`;
 }
 
 function formatMs(ms, resolutionMs) {
@@ -57,6 +63,10 @@ function formatMs(ms, resolutionMs) {
 
 function formatDamage(damage) {
   return damage === null ? "Unknown" : currency.format(damage);
+}
+
+function plural(n, word) {
+  return `${count.format(n)} ${word}${n === 1 ? "" : "s"}`;
 }
 
 function addOptions(select, values) {
@@ -96,8 +106,9 @@ async function loadOptions() {
     addOptions(els.year, options.years);
     addOptions(els.type, options.types);
     optionsLoaded = true;
+    loadedCount = options.loadedCount;
     els.analyze.disabled = false;
-    setStatus(`${count.format(options.loadedCount)} events loaded. Choose filters and press Analyze.`);
+    setStatus(`${loadedText()} Choose filters and press Analyze.`);
   } catch (err) {
     setStatus(`Could not load filter options: ${err.message}`, true);
   }
@@ -130,10 +141,11 @@ async function runQuery(query, offset) {
 
   try {
     const data = await fetchJson(`/api/events?${params}`);
-    if (requestId !== latestRequestId) return;  
+    if (requestId !== latestRequestId) return;
     currentQuery = query;
+    loadedCount = data.loadedCount;
     render(data);
-    setStatus("Done.");
+    setStatus(loadedText());
   } catch (err) {
     if (requestId !== latestRequestId) return;
     setStatus(err.message, true);
@@ -147,69 +159,72 @@ async function runQuery(query, offset) {
 
 let lastData = null;
 
+function addCell(tr, text, className) {
+  const td = document.createElement("td");
+  td.textContent = text;
+  if (className) td.className = className;
+  tr.appendChild(td);
+  return td;
+}
+
 function render(data) {
   lastData = data;
   els.results.hidden = false;
 
-  const timing = data.algorithm === "merge" ? data.timingsMs.merge : data.timingsMs.quick;
-  const timingText = data.algorithm === "both"
-    ? `quicksort ${formatMs(data.timingsMs.quick, data.timerResolutionMs)}, merge sort ${formatMs(data.timingsMs.merge, data.timerResolutionMs)}`
-    : formatMs(timing, data.timerResolutionMs);
-
   els.summary.textContent =
-    `${count.format(data.matchedCount)} matching ${data.matchedCount === 1 ? "event" : "events"} (of ${count.format(data.loadedCount)} loaded), ` +
-    `ranked by ${FIELD_LABELS[data.field]} using ${ALGORITHM_LABELS[data.algorithm]}. ` +
-    `Sort time: ${timingText}.`;
+    `${plural(data.matchedCount, "matching event")}, ranked by ${FIELD_LABELS[data.field]}`;
 
-  els.rows.replaceChildren();
   const isEmpty = data.matchedCount === 0;
   els.empty.hidden = !isEmpty;
   els.tableWrap.hidden = isEmpty;
+  els.timing.hidden = isEmpty;
 
+  renderTiming(data);
+
+  els.rows.replaceChildren();
   data.rows.forEach((row, index) => {
     const tr = document.createElement("tr");
-    const cells = [
-      [String(data.offset + index + 1), ""],
-      [row.date, ""],
-      [row.state, ""],
-      [row.location, ""],
-      [row.type, ""],
-      [formatDamage(row.damage), "num" + (row.damage === null ? " unknown" : "")],
-      [String(row.injuries), "num"],
-    ];
-    for (const [text, className] of cells) {
-      const td = document.createElement("td");
-      td.textContent = text;
-      if (className) td.className = className;
-      tr.appendChild(td);
-    }
-    const actionCell = document.createElement("td");
+    addCell(tr, String(data.offset + index + 1), "num");
+    addCell(tr, row.date);
+    addCell(tr, row.state, "wrap");
+    addCell(tr, row.location, "wrap");
+    addCell(tr, row.type, "wrap");
+    addCell(tr, formatDamage(row.damage), row.damage === null ? "num unknown" : "num");
+    addCell(tr, count.format(row.injuries), "num");
+
+    const actionCell = addCell(tr, "");
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = "Details";
     button.setAttribute("aria-label", `Details for event ${row.eventId}`);
     button.addEventListener("click", () => showDetails(row));
     actionCell.appendChild(button);
-    tr.appendChild(actionCell);
+
     els.rows.appendChild(tr);
   });
-
-  renderComparison(data);
 }
 
-function renderComparison(data) {
-  if (data.algorithm !== "both") {
-    els.comparison.hidden = true;
-    return;
+function renderTiming(data) {
+  const runs = [];
+  if (data.timingsMs.quick !== null) runs.push(["Quicksort", data.timingsMs.quick]);
+  if (data.timingsMs.merge !== null) runs.push(["Merge sort", data.timingsMs.merge]);
+
+  els.timingRows.replaceChildren();
+  for (const [name, ms] of runs) {
+    const tr = document.createElement("tr");
+    addCell(tr, name);
+    addCell(tr, count.format(data.matchedCount), "num");
+    addCell(tr, formatMs(ms, data.timerResolutionMs), "num");
+    els.timingRows.appendChild(tr);
   }
-  els.comparison.hidden = false;
-  els.timeQuick.textContent = formatMs(data.timingsMs.quick, data.timerResolutionMs);
-  els.timeMerge.textContent = formatMs(data.timingsMs.merge, data.timerResolutionMs);
-  els.comparisonNote.textContent =
-    `Single run on ${count.format(data.matchedCount)} ${data.matchedCount === 1 ? "record" : "records"}. Each algorithm sorted its own identical ` +
-    `copy of the filtered data, and only the sort call was timed (not CSV loading, filtering, ` +
-    `process startup, or page transfer). Both produced ` +
-    `${data.ordersMatch ? "the same ranked order" : "DIFFERENT orders"}.`;
+
+  let note = "Single run; only the sort call is timed (not file loading or page transfer).";
+  if (data.algorithm === "both") {
+    note += data.ordersMatch
+      ? " Both algorithms produced the same order."
+      : " Warning: the two algorithms produced different orders.";
+  }
+  els.timingNote.textContent = note;
 }
 
 function updatePager() {
@@ -221,8 +236,7 @@ function updatePager() {
   }
   const start = lastData.offset + 1;
   const end = lastData.offset + lastData.rows.length;
-  els.pageInfo.textContent =
-    `Showing ${count.format(start)}–${count.format(end)} of ${count.format(lastData.matchedCount)}`;
+  els.pageInfo.textContent = `Rows ${count.format(start)}–${count.format(end)}`;
   els.prev.disabled = lastData.offset === 0;
   els.next.disabled = end >= lastData.matchedCount;
 }
@@ -235,7 +249,7 @@ function showDetails(row) {
     ["Location", row.location],
     ["Event type", row.type],
     ["Property damage", formatDamage(row.damage)],
-    ["Injuries", String(row.injuries)],
+    ["Injuries", count.format(row.injuries)],
   ];
   els.detailsList.replaceChildren();
   for (const [term, value] of items) {
@@ -251,7 +265,7 @@ function showDetails(row) {
 
 els.form.addEventListener("submit", (event) => {
   event.preventDefault();
-  runQuery(readForm(), 0); 
+  runQuery(readForm(), 0);
 });
 
 els.prev.addEventListener("click", () => {
