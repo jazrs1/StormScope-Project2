@@ -103,9 +103,12 @@ int main() {
     if (!loadEvents("data/storms_2024.csv", events)) return 1;
     std::vector<StormEvent> master = filterEvents(events, "", 0, "");
     std::cout << "Loaded " << master.size() << " records (all filters off)\n";
-    if (master.size() != 145394) {
-        std::cout << "WARNING: expected 145394 records for the agreed data version\n";
-    }
+if (master.size() != 145394) {
+    std::cerr << "Expected 145394 records for this benchmark, but loaded "
+              << master.size()
+              << ". Check that both agreed NOAA data files are complete.\n";
+    return 1;
+}
 
     const std::vector<Algorithm> algorithms = {{"merge_sort", mergeSort},
                                                {"quick_sort", quickSort}};
