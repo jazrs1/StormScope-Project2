@@ -40,6 +40,19 @@ if ($LASTEXITCODE -eq 0) { & "$env:TEMP\preview_sort.exe" }
 
 On macOS, use `clang++`, `\` for line continuation, output to `/tmp/<name>`, and run with `&& /tmp/<name>`. Compile one `tools/*.cpp` file at a time; each has its own `main`.
 
+## Benchmarks: merge sort vs. quicksort
+
+`tools/benchmark_sorts.cpp` times both sorts on 10,000 / 50,000 / 100,000 / 145,394 records, for every ranking field (damage, injuries, date) and input order (shuffled, sorted, reversed). It runs one warm-up and five timed repetitions per condition, alternating which algorithm goes first, and checks every result afterward. Only the sort call is timed.
+
+Run from the repository root in Windows PowerShell (needs `data/storms_2023.csv` and `data/storms_2024.csv`, takes about a minute):
+
+```powershell
+New-Item -ItemType Directory -Force results
+g++ -std=c++17 -O2 tools/benchmark_sorts.cpp backend/StormLoader.cpp backend/StormFilter.cpp backend/StormSort.cpp backend/MergeSort.cpp backend/QuickSort.cpp -o "$env:TEMP\benchmark_sorts.exe"
+if ($LASTEXITCODE -eq 0) { & "$env:TEMP\benchmark_sorts.exe" }
+```
+
+Raw timings are written to `results/sort_benchmarks.csv`. The machine details, method, median-time table and analysis are in `results/benchmark_notes.md`. Rerunning overwrites the CSV, so only commit new results together with an updated notes file.
 
 
 ## Running the StormScope website
