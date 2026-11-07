@@ -41,6 +41,61 @@ if ($LASTEXITCODE -eq 0) { & "$env:TEMP\preview_sort.exe" }
 On macOS, use `clang++`, `\` for line continuation, output to `/tmp/<name>`, and run with `&& /tmp/<name>`. Compile one `tools/*.cpp` file at a time; each has its own `main`.
 
 
+
+## Running the StormScope website
+
+The website runs locally. The browser talks to a small Flask server, which runs the compiled C++ driver (`backend/storm_cli.cpp`); the driver loads the CSVs, filters, sorts with our own `quickSort`/`mergeSort`, and returns JSON. Opening `web/index.html` directly will not work, because the C++ backend only runs through the server.
+
+**Prerequisites:** a C++17 compiler (g++/MinGW on Windows, clang++ on macOS), Python 3, and the two CSV files in `data/` (see above).
+
+**1. Build the driver** (from the repository root, rebuild after any C++ change)
+
+```powershell
+# Windows PowerShell
+New-Item -ItemType Directory -Force build
+g++ -std=c++17 -Wall -Wextra -O2 -static backend/storm_cli.cpp backend/StormLoader.cpp backend/StormFilter.cpp backend/StormSort.cpp backend/MergeSort.cpp backend/QuickSort.cpp -o build/storm_cli.exe
+```
+```bash
+# macOS
+mkdir -p build
+clang++ -std=c++17 -Wall -Wextra -O2 backend/storm_cli.cpp backend/StormLoader.cpp backend/StormFilter.cpp backend/StormSort.cpp backend/MergeSort.cpp backend/QuickSort.cpp -o build/storm_cli
+```
+
+Quick check: `build/storm_cli --algorithm both --state FLORIDA --year 2024 --type Flood --limit 2` should print JSON with `"loadedCount":145394` and `"matchedCount":73`.
+
+**2. Create the Python environment and install Flask** (once)
+
+```powershell
+# Windows
+py -3 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r server/requirements.txt
+```
+```bash
+# macOS
+python3 -m venv .venv
+.venv/bin/python -m pip install -r server/requirements.txt
+```
+
+**3. Start the server**, then open http://127.0.0.1:5000
+
+```powershell
+.venv\Scripts\python.exe -m flask --app server/app run --port 5000   # Windows
+```
+```bash
+.venv/bin/python -m flask --app server/app run --port 5000           # macOS
+```
+
+Stop the server with Ctrl+C.
+
+**Troubleshooting**
+- *"C++ driver not found"*: build step 1 was skipped or failed.
+- *"Could not open data/storms_20XX.csv"*: check the CSV filenames in `data/`.
+- *Port 5000 already in use* (common on macOS because of AirPlay Receiver): use `--port 5050` and open http://127.0.0.1:5050.
+- Each search reloads both CSVs, so it takes a second or two. Timings measure only the sort call (not loading, filtering, or page transfer) and are single runs. Very fast sorts show `<0.001 ms`, or "below timer resolution" if the clock could not measure them.
+
+Third-party software: Flask (BSD-3-Clause), used only as the local web server. All sorting and JSON output is our own C++ code.
+
+
 <H1> COP3530 - Project 2 </h1>
 This is the template for Project 2 repositories. It includes all the assignment instructions and documentation to help you use GitHub.
 
