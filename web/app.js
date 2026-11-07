@@ -148,6 +148,10 @@ async function runQuery(query, offset) {
     setStatus(loadedText());
   } catch (err) {
     if (requestId !== latestRequestId) return;
+    currentQuery = null;
+    lastData = null;
+    els.results.hidden = true;
+    els.rows.replaceChildren();
     setStatus(err.message, true);
   } finally {
     if (requestId === latestRequestId) {
