@@ -2,9 +2,13 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <algorithm>
 
-bool readCsvRow(std::istream& input, std::vector<std::string>& row) {
+bool readCsvRow(std::istream& input, std::vector<std::string>& row,
+                bool* malformed = nullptr) {
     row.clear();
+    if (malformed) *malformed = false;
+
     std::string field;
     bool inQuotes = false;
     char ch;
@@ -12,7 +16,7 @@ bool readCsvRow(std::istream& input, std::vector<std::string>& row) {
     while (input.get(ch)) {
         if (ch == '"') {
             if (inQuotes && input.peek() == '"') {
-                input.get();       
+                input.get();
                 field += '"';
             } else {
                 inQuotes = !inQuotes;
@@ -28,8 +32,14 @@ bool readCsvRow(std::istream& input, std::vector<std::string>& row) {
         }
     }
 
-    if (inQuotes || (row.empty() && field.empty())) return false;
-    row.push_back(field);           
+    if (inQuotes || input.bad()) {
+        if (malformed) *malformed = true;
+        return false;
+    }
+
+    if (row.empty() && field.empty()) return false;
+
+    row.push_back(field);
     return true;
 }
 bool parseDamage(const std::string& text, double& dollars) {
@@ -65,11 +75,25 @@ bool loadEvents(const std::string& path, std::vector<StormEvent>& events) {
         std::cerr << "Could not read the header in " << path << '\n';
         return false;
     }
+        const std::vector<std::string> requiredColumns = {
+        "EVENT_ID", "STATE", "EVENT_TYPE", "CZ_NAME", "YEAR",
+        "BEGIN_YEARMONTH", "BEGIN_DAY", "BEGIN_TIME",
+        "BEGIN_DATE_TIME", "INJURIES_DIRECT", "INJURIES_INDIRECT",
+        "DAMAGE_PROPERTY", "EVENT_NARRATIVE"
+    };
 
+    for (const std::string& column : requiredColumns) {
+        if (std::find(header.begin(), header.end(), column) == header.end()) {
+            std::cerr << "Missing required column " << column
+                      << " in " << path << '\n';
+            return false;
+        }
+    }
     std::vector<std::string> row;
     std::size_t rowNumber = 0;
+    bool malformed = false;
 
-    while (readCsvRow(file, row)) {
+    while (readCsvRow(file, row, &malformed)) {
         ++rowNumber;
         if (row.size() != header.size()) {
             std::cerr << "Wrong number of columns in " << path
@@ -120,6 +144,10 @@ bool loadEvents(const std::string& path, std::vector<StormEvent>& events) {
                         * 10000 + time;
         events.push_back(storm);
     }
-
+        if (malformed) {
+        std::cerr << "Malformed CSV or read error in " << path
+                  << ", data row " << rowNumber + 1 << '\n';
+        return false;
+    }
     return true;
 }
